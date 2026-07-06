@@ -8,11 +8,14 @@
         .slot { width: 100px; height: 100px; background: #e74c3c; display: inline-flex; align-items: center; justify-content: center; font-size: 50px; margin: 5px; border-radius: 15px; }
         .pet-container { background: #34495e; padding: 15px; border-radius: 10px; margin: 20px auto; width: 80%; }
         .spin-btn { padding: 15px 25px; cursor: pointer; border: none; border-radius: 10px; color: white; font-weight: bold; margin: 5px; }
+        .gift-btn { padding: 15px; font-size: 18px; cursor: pointer; background: gold; border: none; border-radius: 10px; color: black; font-weight: bold; margin-top: 10px; }
         @keyframes spinAnim { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .animating { animation: spinAnim 0.5s linear; }
     </style>
 </head>
 <body>
+
+<button class="gift-btn" onclick="giveGift()">🎁 ЗАБРАТЬ ПОДАРОК ОТ РАЗРАБОТЧИКА</button>
 
 <h3>💎 Кристаллы: <span id="crystal-count">10</span> | 💰 Баланс: <span id="balance">100000</span></h3>
 
@@ -43,6 +46,7 @@
     let crystals = parseInt(localStorage.getItem('myCasinoCrystals')) || 10;
     let pets = JSON.parse(localStorage.getItem('myPets')) || [];
     let timeLeft = 600;
+    const symbols = ["🍒", "🍋", "💎", "⭐", "🔔", "💰"];
 
     function updateUI() {
         document.getElementById('balance').innerText = money;
@@ -52,6 +56,18 @@
         localStorage.setItem('myCasinoMoney', money);
         localStorage.setItem('myCasinoCrystals', crystals);
         localStorage.setItem('myPets', JSON.stringify(pets));
+    }
+
+    function giveGift() {
+        let today = new Date().toDateString();
+        if (localStorage.getItem('lastGiftDate') === today) {
+            alert("Подарок можно забрать только один раз в день!");
+            return;
+        }
+        money += 500000; crystals += 5;
+        localStorage.setItem('lastGiftDate', today);
+        alert("🎁 Подарок получен! +500к монет и +5 кристаллов!");
+        updateUI();
     }
 
     function spin(cost) {
@@ -75,7 +91,9 @@
                 money += 500;
                 alert("ЧЕРЕШНЯ! +500 монет!");
             } else {
-                slots[0].innerText = "💰"; slots[1].innerText = "⭐"; slots[2].innerText = "🔔";
+                slots[0].innerText = symbols[Math.floor(Math.random() * symbols.length)];
+                slots[1].innerText = symbols[Math.floor(Math.random() * symbols.length)];
+                slots[2].innerText = symbols[Math.floor(Math.random() * symbols.length)];
             }
             slots.forEach(s => s.classList.remove('animating'));
             updateUI();
