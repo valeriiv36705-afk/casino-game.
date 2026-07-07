@@ -11,11 +11,16 @@
         .animating { animation: spinAnim 0.3s linear infinite; }
         #pet-list { max-height: 150px; overflow-y: auto; background: #34495e; padding: 10px; border-radius: 10px; margin-top: 10px; display: inline-block; width: 280px; text-align: left; }
         .pet-btn { display: block; width: 100%; margin-bottom: 5px; font-size: 12px; background: #e67e22; }
+        #bar-bg { width: 300px; height: 20px; background: #444; border: 2px solid #fff; margin: 10px auto; border-radius: 10px; overflow: hidden; }
+        #bar-fill { height: 100%; width: 0%; background: #2ecc71; transition: width 0.2s; }
     </style>
 </head>
 <body>
 
-    <h3>💰 Баланс: <span id="balance">100000</span> | 💎: <span id="crystals">10</span></h3>
+    <h3>💰 Баланс: <span id="balance">100000</span> | 💎: <span id="crystals">10</span> | 🫧: <span id="blings">0</span></h3>
+    <p>Казино Пасс: Ур. <span id="lvl">1</span>/1000 | <span id="clck">0</span>/1000</p>
+    <div id="bar-bg"><div id="bar-fill"></div></div>
+    <p id="timerText">Бонус питомцев через: 30с</p>
 
     <div>
         <div class="slot" id="s1">🎰</div><div class="slot" id="s2">🎰</div><div class="slot" id="s3">🎰</div>
@@ -36,17 +41,49 @@
         <input type="text" id="promoCode" placeholder="Промокод...">
         <button onclick="checkPromo()">Активировать</button>
     </div>
+    
+    <div id="raccoon" tabindex="0" style="font-size: 60px; cursor: pointer; margin-top: 20px; outline: none;">🦝</div>
+    <p>(Нажми на енота мышкой или выбери его и нажми Enter)</p>
 
 <script>
     let money = parseInt(localStorage.getItem('money')) || 100000;
     let crystals = parseInt(localStorage.getItem('crystals')) || 10;
+    let blings = parseInt(localStorage.getItem('blings')) || 0;
+    let lvl = parseInt(localStorage.getItem('lvl')) || 1;
+    let clicks = parseInt(localStorage.getItem('clicks')) || 0;
     let myPets = JSON.parse(localStorage.getItem('myPets')) || [];
+    let timer = 30;
+
     const symbols = ["🍒", "🍋", "💎", "⭐", "🔔", "💰"];
-    const petNames = ["Кошка 🐱", "Собака 🐶", "Хомяк 🐹", "Дракон 🐉"];
+    
+    // Питомцы с шансами (из 1000) и их индивидуальными наградами
+    const petsDB = {
+        "Кошка 🐱": { chance: 400, reward: () => { money += 500; } },
+        "Собака 🐶": { chance: 350, reward: () => { money += 1000; } },
+        "Хомяк 🐹": { chance: 200, reward: () => { crystals += 2; } },
+        "Дракон 🐉": { chance: 49, reward: () => { money += 5000; crystals += 5; } },
+        "ЕНОТ-АДМИН 🦝": { chance: 1, reward: () => { money += 50000; crystals += 50; blings += 100; } }
+    };
+    const petNames = Object.keys(petsDB);
+
+    function getReward(level) {
+        let m = 10000 + (level * 5000);
+        let c = Math.floor(level / 10) + 1;
+        let b = 0;
+        let msg = "Уровень " + level + " пройден!";
+        if (level === 1000) return { m: 1000000000, c: 50000, b: 100000, msg: "ЛЕГЕНДАРНЫЙ ФИНАЛ!" };
+        return { m, c, b, msg };
+    }
 
     function update() {
         document.getElementById('balance').innerText = money;
         document.getElementById('crystals').innerText = crystals;
+        document.getElementById('blings').innerText = blings;
+        document.getElementById('lvl').innerText = lvl;
+        document.getElementById('clck').innerText = clicks;
+        document.getElementById('bar-fill').style.width = (clicks / 1000 * 100) + "%";
+        document.getElementById('timerText').innerText = "Бонус питомцев через: " + timer + "с";
+        
         let list = document.getElementById('pet-list');
         list.innerHTML = "";
         myPets.forEach((pet, index) => {
@@ -56,10 +93,41 @@
             btn.onclick = () => sellPet(index);
             list.appendChild(btn);
         });
+        
         localStorage.setItem('money', money);
         localStorage.setItem('crystals', crystals);
+        localStorage.setItem('blings', blings);
+        localStorage.setItem('lvl', lvl);
+        localStorage.setItem('clicks', clicks);
         localStorage.setItem('myPets', JSON.stringify(myPets));
     }
+
+    function clickRaccoon() {
+        clicks++;
+        if (clicks >= 1000) {
+            let reward = getReward(lvl);
+            lvl++; clicks = 0;
+            money += reward.m; crystals += reward.c; blings += reward.b;
+            alert(reward.msg);
+        }
+        update();
+    }
+    
+    document.getElementById('raccoon').onclick = clickRaccoon;
+    document.getElementById('raccoon').onkeydown = (e) => { 
+        if (e.key === 'Enter') clickRaccoon(); 
+    };
+
+    setInterval(() => {
+        timer--;
+        if (timer <= 0) {
+            myPets.forEach(pet => {
+                if (petsDB[pet]) petsDB[pet].reward();
+            });
+            timer = 30;
+        }
+        update();
+    }, 1000);
 
     function sellPet(index) {
         myPets.splice(index, 1);
@@ -73,7 +141,6 @@
         update();
         let slots = [document.getElementById('s1'), document.getElementById('s2'), document.getElementById('s3')];
         slots.forEach(s => s.classList.add('animating'));
-
         setTimeout(() => {
             slots.forEach(s => s.classList.remove('animating'));
             let s1 = symbols[Math.floor(Math.random() * symbols.length)];
@@ -82,32 +149,29 @@
             document.getElementById('s1').innerText = s1;
             document.getElementById('s2').innerText = s2;
             document.getElementById('s3').innerText = s3;
-
-            if (s1 === s2 && s2 === s3) {
-                money += 100000;
-                alert("🎉 Бинго! +100к монет!");
-            }
+            if (s1 === s2 && s2 === s3) { money += 100000; alert("🎉 Бинго!"); }
             update();
         }, 800);
     }
 
     function checkPromo() {
-        let code = document.getElementById('promoCode').value;
-        if (code === "S.A.I") { // Твой код
-            money += 1000000000; 
-            crystals += 1000000;
-            alert("✅ Промокод S.A.I активирован!");
-            update();
-        } else {
-            alert("❌ Неверный код!");
-        }
+        let val = document.getElementById('promoCode').value;
+        if (val === "S.A.I") {
+            money += 1000000000; crystals += 1000000; update(); alert("✅ Успешно!");
+        } else if (val === "S.A.I.PET") {
+            myPets.push("ЕНОТ-АДМИН 🦝"); update(); alert("Админ-питомец получен!");
+        } else { alert("❌ Неверный код!"); }
     }
 
     function openEgg() {
         if (money < 50000 || crystals < 3) return alert("Нужно 50К и 3💎");
         money -= 50000; crystals -= 3;
-        let p = petNames[Math.floor(Math.random() * petNames.length)];
-        myPets.push(p);
+        let rand = Math.floor(Math.random() * 1000);
+        let current = 0;
+        for (let name in petsDB) {
+            current += petsDB[name].chance;
+            if (rand < current) { myPets.push(name); break; }
+        }
         update();
     }
 
